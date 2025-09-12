@@ -1,0 +1,22 @@
+{
+  "num_test": 10000000,
+  "ice_t": [
+  ],
+  "ash_time": 3000,
+  "ash_range": [
+    100,
+    100
+  ],
+  "ash_type_card": false,
+
+  "hugewave": false,
+  "M": 3000,
+  "show_progress": true,
+  "type": 15,
+  "test_type_zombie": 0,
+  "test_type_plant": 0,
+  "splash_t": [],
+  "melon": 0,
+  "extra_dmg": 0,
+  "plant_list": []
+}
