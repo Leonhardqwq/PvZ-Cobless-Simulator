@@ -135,7 +135,7 @@ public:
             case ZombieType::Pogo:              hp = 335; break;    // 335 / 500
 
             case ZombieType::Balloon:           hp = 290; break;
-            case ZombieType::Digger:            hp = 370; break;
+            case ZombieType::Digger:            hp = 281; break;
             case ZombieType::Catapult_Shoot:
             case ZombieType::Catapult:          hp = 850; break;
             case ZombieType::Zomboni:           hp = 1350; break;

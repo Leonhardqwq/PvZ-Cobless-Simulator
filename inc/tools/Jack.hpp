@@ -4,6 +4,7 @@
 #include <thread>
 #include <atomic>
 #include <chrono>
+#include <vector>
 
 #include "../json.hpp"
 #include "../calculate_position.hpp"
@@ -33,13 +34,18 @@ public:
     int melon = 0;
     
     // timing param
-    int ash_time = 3000;
-    bool ash_type_card = true;
-    std::pair<int, int> ash_range = {-200, -200};
+    std::vector<std::vector<int>> ash_infos = {
+        // time / type_card / range_left / range_right
+        {3000, 1, -200, -200},
+    };
+    // int ash_time = 3000;
+    // bool ash_type_card = true;
+    // std::pair<int, int> ash_range = {-200, -200};
     int vulnerable_time = 0;
 
     // plant param
-    std::vector<std::vector<int>> plant_list = {    // col / type / work
+    std::vector<std::vector<int>> plant_list = {    
+        // col / type / work
         {6, 0, 1}, 
         {4, 1, 1}
     };
@@ -74,9 +80,10 @@ public:
         splash_t = j["splash_t"].get<std::vector<int>>();
         melon = j["melon"];
 
-        ash_time = j["ash_time"];
-        ash_type_card = j["ash_type_card"];
-        ash_range = j["ash_range"].get<std::pair<int, int>>();
+        ash_infos = j["ash_infos"].get<std::vector<std::vector<int>>>();
+        // ash_time = j["ash_time"];
+        // ash_type_card = j["ash_type_card"];
+        // ash_range = j["ash_range"].get<std::pair<int, int>>();
         vulnerable_time = j["vulnerable_time"];
 
         plant_list = j["plant_list"].get<std::vector<std::vector<int>>>();
@@ -136,9 +143,16 @@ public:
         std::cout << std::endl;
         std::cout << "melon: " << melon << std::endl;
 
-        std::cout << "ash_time: " << ash_time << std::endl;
-        std::cout << "ash_type_card: " << ash_type_card << std::endl;
-        std::cout << "ash_range: " << ash_range.first << " " << ash_range.second << std::endl;
+        std::cout << "ash_infos: " << std::endl;
+        for (const auto& info : ash_infos) {
+            std::cout << "  time: " << info[0]
+                      << ", type_card: " << info[1]
+                      << ", range: [" << info[2] << ", " << info[3] << "]"
+                      << std::endl;
+        }
+        // std::cout << "ash_time: " << ash_time << std::endl;
+        // std::cout << "ash_type_card: " << ash_type_card << std::endl;
+        // std::cout << "ash_range: " << ash_range.first << " " << ash_range.second << std::endl;
         std::cout << "vulnerable_time: " << vulnerable_time << std::endl;
 
         std::cout << "plant: " << std::endl;
@@ -189,19 +203,24 @@ public:
         // 剪枝
         if (jack.res == -1) throw std::runtime_error("M is too small");
         if (jack.res + 110 < config.vulnerable_time)  return false;
-        if (config.ash_type_card){
-            if (jack.res + 110 >= config.ash_time){
-                auto x_lim = std::max(int(jack.x[jack.res-1]), int(jack.x[config.ash_time-1]));
-                if (x_lim + jack.z.def_x.first <=800 && config.ash_range.first<=x_lim && x_lim<=config.ash_range.second){
-                    return false;
+        for (const auto& info : config.ash_infos){
+            int ash_time = info[0];
+            bool ash_type_card = info[1]==1;
+            std::pair<int, int> ash_range = {info[2], info[3]};
+            if (ash_type_card){
+                if (jack.res + 110 >= ash_time){
+                    auto x_lim = std::max(int(jack.x[jack.res-1]), int(jack.x[ash_time-1]));
+                    if (x_lim + jack.z.def_x.first <=800 && ash_range.first<=x_lim && x_lim<=ash_range.second){
+                        return false;
+                    }
                 }
             }
-        }
-        else{
-            if (jack.res + 110 >= config.ash_time + 1) {
-                auto x_lim = std::max(int(jack.x[jack.res-1]), int(jack.x[config.ash_time]));
-                if (x_lim + jack.z.def_x.first <=800 && config.ash_range.first<=x_lim && x_lim<=config.ash_range.second){
-                    return false;
+            else{
+                if (jack.res + 110 >= ash_time + 1) {
+                    auto x_lim = std::max(int(jack.x[jack.res-1]), int(jack.x[ash_time]));
+                    if (x_lim + jack.z.def_x.first <=800 && ash_range.first<=x_lim && x_lim<=ash_range.second){
+                        return false;
+                    }
                 }
             }
         }

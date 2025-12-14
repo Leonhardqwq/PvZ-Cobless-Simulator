@@ -4,7 +4,7 @@
 
 
 void test_ice(int me_st, int me_en, int t_en=550){
-    JackConfig config("jack_config.json");
+    JackConfig config("../jack_config.json");
 
     auto start = std::chrono::high_resolution_clock::now();
     std::vector<std::vector<double>> all_results;
@@ -29,7 +29,7 @@ void test_ice(int me_st, int me_en, int t_en=550){
 }
 
 void test_splash_late(int me_st, int me_en, int t_en=1320){
-    JackConfig config("jack_config.json");
+    JackConfig config("../jack_config.json");
 
     auto start = std::chrono::high_resolution_clock::now();
     std::vector<std::vector<double>> all_results;
@@ -52,7 +52,7 @@ void test_splash_late(int me_st, int me_en, int t_en=1320){
 }
 
 void test_splash_early(int me_st, int me_en, int t_en=1320){
-    JackConfig config("jack_config.json");
+    JackConfig config("../jack_config.json");
 
     auto start = std::chrono::high_resolution_clock::now();
     std::vector<std::vector<double>> all_results;
@@ -86,9 +86,9 @@ int main() {
 
     ///*
     test_splash_late(
-        1
-        ,3
-        ,300
+        5
+        ,12
+        ,1320
     );
     //*/
 
@@ -96,7 +96,7 @@ int main() {
     test_ice(
         0
         , 3
-        , 300
+        , 550
     );    
     //*/
 

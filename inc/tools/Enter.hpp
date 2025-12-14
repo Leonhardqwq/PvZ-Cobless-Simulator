@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdio>
 #include <fstream>
 
 #include <thread>
@@ -42,9 +43,13 @@ public:
     int extra_dmg = 0;
 
     // ash param
-    int ash_time = 3000;
-    bool ash_type_card = true;
-    std::pair<int, int> ash_range = {-200, -200};
+    std::vector<std::vector<int>> ash_infos = {
+        // time / type_card / range_left / range_right
+        {3000, 1, -200, -200},
+    };
+    // int ash_time = 3000;
+    // bool ash_type_card = true;
+    // std::pair<int, int> ash_range = {-200, -200};
 
     // plant param
     std::vector<std::vector<int>> plant_list = {    // col / type / work
@@ -75,9 +80,10 @@ public:
         melon = j["melon"];
         extra_dmg = j["extra_dmg"];
 
-        ash_time = j["ash_time"];
-        ash_type_card = j["ash_type_card"];
-        ash_range = j["ash_range"].get<std::pair<int, int>>();
+        ash_infos = j["ash_infos"].get<std::vector<std::vector<int>>>();
+        // ash_time = j["ash_time"];
+        // ash_type_card = j["ash_type_card"];
+        // ash_range = j["ash_range"].get<std::pair<int, int>>();
 
         plant_list = j["plant_list"].get<std::vector<std::vector<int>>>();
     }
@@ -101,9 +107,16 @@ public:
         std::cout << "melon: " << melon << std::endl;
         std::cout << "extra_dmg: " << extra_dmg << std::endl;
 
-        std::cout << "ash_time: " << ash_time << std::endl;
-        std::cout << "ash_type_card: " << ash_type_card << std::endl;
-        std::cout << "ash_range: " << ash_range.first << " " << ash_range.second << std::endl;
+        std::cout << "ash_infos: " << std::endl;
+        for (const auto& info : ash_infos) {
+            std::cout << "  time: " << info[0]
+                      << ", type_card: " << info[1]
+                      << ", range: [" << info[2] << ", " << info[3] << "]"
+                      << std::endl;
+        }
+        // std::cout << "ash_time: " << ash_time << std::endl;
+        // std::cout << "ash_type_card: " << ash_type_card << std::endl;
+        // std::cout << "ash_range: " << ash_range.first << " " << ash_range.second << std::endl;
 
         std::cout << "plant: " << std::endl;
         for (const auto& plant : plant_list) {
@@ -134,7 +147,7 @@ public:
         }
     }
 
-    // 这里的三个函数都是相对于plant时机来说的，相对于projectile时机传参为i+1
+    // 这里的函数都是相对于plant时机来说的，相对于projectile时机传参为i+1
     bool check_dolphin_jumpinpool(int i){
         if (zombie.z.type!=ZombieType::DolphinRider)  return false;
         if (i<2) return false;
@@ -153,32 +166,43 @@ public:
         if(i>zombie.res && int(zombie.x[i-2])>25) return true;
         return false;
     }
+    // 判断是否非dizzy
+    bool check_digger_not_dizzy(int i){
+        if (zombie.z.type!=ZombieType::Digger)  return false;
+        if(i<=zombie.res) return true;
+        return false;
+    }
 
-    // return boom
+    // return break
     bool simu() {
         zombie.init();
         zombie.calculate_position();
-        // std::cout<< zombie.t_enter <<std::endl; //
+        // printf("%d\n", zombie.t_enter);
 
         // 剪枝
         if (zombie.t_enter == -1)   throw std::runtime_error("M is too small");
         // ash
-        if (config.ash_type_card){
-            if (zombie.t_enter >= config.ash_time){
-                auto x_lim = int(zombie.x[config.ash_time-1]);
-                if (x_lim + zombie.z.def_x.first <=800 && 
-                    config.ash_range.first<=x_lim && 
-                    x_lim<=config.ash_range.second)
-                    return false;
+        for (const auto& info : config.ash_infos){
+            int ash_time = info[0];
+            bool ash_type_card = info[1]==1;
+            std::pair<int, int> ash_range = {info[2], info[3]};
+            if (ash_type_card){
+                if (zombie.t_enter >= ash_time){
+                    auto x_lim = int(zombie.x[ash_time-1]);
+                    if (x_lim + zombie.z.def_x.first <=800 && 
+                        ash_range.first<=x_lim && 
+                        x_lim<=ash_range.second)
+                        return false;
+                }
             }
-        }
-        else{
-            if (zombie.t_enter >= config.ash_time + 1) {
-                auto x_lim = int(zombie.x[config.ash_time]);
-                if (x_lim + zombie.z.def_x.first <=800 && 
-                    config.ash_range.first<=x_lim && 
-                    x_lim<=config.ash_range.second)
-                    return false;
+            else{
+                if (zombie.t_enter >= ash_time + 1) {
+                    auto x_lim = int(zombie.x[ash_time]);
+                    if (x_lim + zombie.z.def_x.first <=800 && 
+                        ash_range.first<=x_lim && 
+                        x_lim<=ash_range.second)
+                        return false;
+                }
             }
         }
 
@@ -188,7 +212,6 @@ public:
             shroom_works.push_back(shroom_infos[i].work);
         }
 
-        
         int hp = zombie.z.hp - config.melon * 26 - config.extra_dmg;
         int ice_idx = 0, splash_idx = 0;
 
@@ -197,51 +220,49 @@ public:
             // plant & ice
             if (ice_idx < config.ice_t.size() && config.ice_t[ice_idx] == static_cast<int>(i)){
                 if (zombie.z.type != ZombieType::Zomboni && 
-                    zombie.z.type != ZombieType::Digger &&
                     zombie.z.type != ZombieType::Balloon &&
                     zombie.z.type != ZombieType::Pogo &&
-                    !check_dolphin_jumpinpool(i) && !check_snorkel_jumpinpool(i)
-                )
-                    // dophin / snorkel  jumpinwater
+                    !check_dolphin_jumpinpool(i) && !check_snorkel_jumpinpool(i) && 
+                    !check_digger_not_dizzy(i)
+                ){
+                    // dophin / snorkel  jumpinwater / digger not dizzy
                     hp-=20;
+                }
+
                 ice_idx++;
             }
             for (size_t j=0;j<shrooms.size();j++){
                 auto& p = shrooms[j];
                 if (p.state[i]==2 && shroom_works[j]){
                     if (zombie.z.type != ZombieType::Balloon &&
-                        zombie.z.type != ZombieType::Digger &&
                         !check_dolphin_jumpinpool(i) && !check_snorkel_jumpinpool(i) && 
-                        !check_snorkel_swim(i)
+                        !check_snorkel_swim(i) &&
+                        !check_digger_not_dizzy(i)
                     ){
                         if (x_int + zombie.z.def_x.first<=800 &&
                             shroom_infos[j].x + p.p.atk.first <= x_int + zombie.z.def_x.second &&
                             shroom_infos[j].x + p.p.atk.second >= x_int + zombie.z.def_x.first){
                             hp -= p.p.dmg;
+                            // printf("%d ", i);
+                            // fflush(stdout);
                         }
                     }
                 }
                 if (p.state[i]==1 && !shroom_works[j]){
                     if (zombie.z.type != ZombieType::Balloon &&
-                        zombie.z.type != ZombieType::Digger &&
                         !check_dolphin_jumpinpool(i) && !check_snorkel_jumpinpool(i) && 
-                        !check_snorkel_swim(i)                   
+                        !check_snorkel_swim(i) &&
+                        !check_digger_not_dizzy(i)
                     )
                         if (x_int + zombie.z.def_x.first<=800 &&
                             shroom_infos[j].x + p.p.trig.first <= x_int + zombie.z.def_x.second &&
-                            shroom_infos[j].x + p.p.trig.second >= x_int + zombie.z.def_x.first)
+                            shroom_infos[j].x + p.p.trig.second >= x_int + zombie.z.def_x.first){
                             shroom_works[j] = true;
+                            // printf("%d\n", i);
+                            // fflush(stdout);
+                        }
                 }
             }
-
-            /* // ash_card
-            if (i == config.ash_time && config.ash_type_card)
-                if (x_int + zombie.z.def_x.first <= 800 && 
-                    config.ash_range.first<=x_int && 
-                    x_int<=config.ash_range.second){
-                        return false;
-                    }
-             */   
 
             // dying
             if (hp<=0){
@@ -253,14 +274,6 @@ public:
             // position / progress
             x_int = zombie.x[i];
 
-            /* // ash_cob
-            if (i == config.ash_time && !config.ash_type_card)
-                if (x_int + zombie.z.def_x.first <= 800 && 
-                    config.ash_range.first<=x_int && 
-                    x_int<=config.ash_range.second){
-                        return false;
-                    }
-            */
 
             // melon
             if (splash_idx < config.splash_t.size() && config.splash_t[splash_idx] == static_cast<int>(i)){
@@ -275,7 +288,6 @@ public:
         }
         return false;
     }
-
 };
 
 // true为并行，false为串行
@@ -289,7 +301,10 @@ double work(EnterConfig config, bool parallel = false) {
         EnterSimulator sim(config);
         int ans = 0;
         for (int i = 0; i < N; ++i) {
-            if (sim.simu()) ans++;
+            if (sim.simu()) {
+                ans++;
+            }
+            // printf("\n");
             if (config.show_progress && i % (N/100) == 0 && i > 0) {
                 printf("(%5.2lf%%) %5.5f%%\n", 100.0 * i / N, 100.0 * ans / i);
                 fflush(stdout);
@@ -314,7 +329,9 @@ double work(EnterConfig config, bool parallel = false) {
             threads.emplace_back([&, this_N]() {
                 EnterSimulator sim(config);
                 for (int j = 0; j < this_N; ++j) {
-                    if (sim.simu())     ans++;
+                    if (sim.simu()){
+                        ans++;
+                    }
                     finished++; 
                 }
             });

@@ -4,7 +4,7 @@ import json
 file_name = 'jack_test_info.xlsx'
 
 ###
-info_read = pd.read_excel(file_name, usecols='B', skiprows=0, nrows=21,header=None)
+info_read = pd.read_excel(file_name, usecols='B', skiprows=0, nrows=16,header=None)
 info_list = info_read.iloc[:,0].tolist()
 
 tmp = info_list[0]
@@ -37,22 +37,20 @@ melon = int(info_list[7])
 test_N = int(info_list[9])  # a * 10**n
 show_pro = info_list[10] == "是"
 
-ash_time = int(info_list[12])
+vulnerable_time = int(info_list[12])
 # M_sup = int(info_list[13])
-ash_type_card = info_list[14] == "卡"
-vulnerable_time = int(info_list[15])
 
-tmp = info_list[17]
+tmp = info_list[14]
 if tmp == "随机":   test_type_zombie = 0
 elif tmp == "最快": test_type_zombie = 1
 else:               test_type_zombie = 2
 
-tmp = info_list[18]
+tmp = info_list[15]
 if tmp == "随机":   test_type_plant = 0
 elif tmp == "最快": test_type_plant = 1
 else:               test_type_plant = 2
 
-ash_range = (int(info_list[19]), int(info_list[20]))
+
 
 ###
 
@@ -80,6 +78,17 @@ info_read.dropna(inplace=True)
 info_list = info_read.iloc[:,0].tolist()
 for info in info_list:
     splash_t.append(int(info))
+    
+ash_infos = []
+info_read = pd.read_excel(file_name, usecols='M:P', skiprows=2,header=None,na_values='')
+info_read.dropna(inplace=True)
+info_list = info_read.apply(lambda row: row.tolist(), axis=1).tolist()
+for tmp in info_list:
+    ash_time = int(tmp[0])
+    ash_type_card = 1 if tmp[1]=="卡" else 0
+    ash_range_left = int(tmp[2])
+    ash_range_right = int(tmp[3])
+    ash_infos.append([ash_time, ash_type_card, ash_range_left, ash_range_right])
 
 
 config_dict = {
@@ -100,9 +109,7 @@ config_dict = {
   "splash_t": splash_t,
   "melon": melon,
 
-  "ash_time": ash_time,
-  "ash_range": ash_range,
-  "ash_type_card": ash_type_card,
+  "ash_infos": ash_infos,
   "vulnerable_time": vulnerable_time,
 
   "plant_list": [[v[0], v[1], 1 if v[2] else 0] for v in plant_list]

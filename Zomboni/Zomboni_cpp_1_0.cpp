@@ -10,6 +10,7 @@ void test(){
 
 int main() {
     ZomboniConfig  config("zomboni_config.json");
+    // 测试进家在这里修改 config.x_crush
 
     auto start = std::chrono::high_resolution_clock::now();
     auto ci = wilson_confidence_interval( work(config, 1), config.num_test);

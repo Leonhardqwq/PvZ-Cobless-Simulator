@@ -2,6 +2,8 @@
 # include "rng.hpp"
 # include "common.hpp"
 #include <cstddef>
+#include <cstdio>
+#include <iostream>
 
 class PositionCalculator {
 private:
@@ -30,7 +32,7 @@ public:
     // 结果
     std::vector<float> x;
     int t_enter = -1; 
-    int res = -1;    // jack 爆炸时机, snorkel潜入时机
+    int res = -1;    // jack爆炸时机, snorkel潜入时机, 矿工站稳时机
 
     PositionCalculator(
         ZombieType t, int M, bool huge_wave,
@@ -85,11 +87,13 @@ public:
         }
         else if(
             z.type == ZombieType::Balloon ||
-            z.type == ZombieType::Digger ||
             z.type == ZombieType::Pogo ||
             z.type == ZombieType::Catapult
         ){
             calculate_constant();
+        }
+        else if(z.type == ZombieType::Digger){
+            calculate_digger();
         }
         else if(z.type == ZombieType::DolphinRider){
             calculate_dolphin_rider();
@@ -196,8 +200,7 @@ private:
             if (ice_idx < ice_t.size() && ice_t[ice_idx] == static_cast<int>(i)){
                 if(z.type==ZombieType::Catapult)
                     frozen_cd = std::max(slow_cd>0?frozen_t[1][ice_idx]:frozen_t[0][ice_idx], frozen_cd);
-                if(z.type!=ZombieType::Digger)
-                    slow_cd = std::max(2000, slow_cd);
+                slow_cd = std::max(2000, slow_cd);
                 ice_idx++;
             }
 
@@ -215,13 +218,147 @@ private:
 
             // projectile splash
             if (splash_idx < splash_t.size() && splash_t[splash_idx] == static_cast<int>(i)){
-                if(z.type!=ZombieType::Digger && z.type!=ZombieType::Balloon)
+                if(z.type!=ZombieType::Balloon)
                     if (int(x[i])+z.def_x.first <=800)
                         slow_cd = std::max(1000, slow_cd);
                 splash_idx++;
             }
 
-            if (int(x[i-1]) <= z.threshold && t_enter == -1)   t_enter = i;
+            if (int(x[i]) <= z.threshold && t_enter == -1)   t_enter = i;
+        }
+    }
+
+    void calculate_digger(){
+        float progress = 0.0f;
+        int n_repeated = 0;
+        float fps = 12.0f;
+        unsigned n_frames = 21;
+
+        int frozen_cd = 0, slow_cd = 0, ice_idx = 0;
+        action_cd = 130;
+        size_t i = 1;
+
+        // dig
+        for(;i<M;i++){
+            // plant ice
+            if (ice_idx < ice_t.size() && ice_t[ice_idx] == static_cast<int>(i)){
+                ice_idx++;
+            }
+
+            // cd
+            if (frozen_cd>0) frozen_cd--;
+            if (slow_cd>0) slow_cd--;
+
+            // status
+            if(x[i-1]<10){
+                // position
+                x.push_back(x[i-1]);
+                i++; break;
+            }
+
+            // position
+            float dx = v0;
+            if(frozen_cd>0)     dx = 0.0f;
+            else if(slow_cd>0)  dx *= 0.4f;
+            
+            float x_new = x[i-1] - dx;
+            x.push_back(x_new);
+        }
+
+        // drill
+        for(;i<M;i++){
+            // plant ice
+            if (ice_idx < ice_t.size() && ice_t[ice_idx] == static_cast<int>(i)){
+                ice_idx++;
+            }
+
+            // cd
+            if(action_cd>0 && frozen_cd==0) action_cd--;
+            if (frozen_cd>0) frozen_cd--;
+            if (slow_cd>0) slow_cd--;
+
+            // status
+            if(action_cd==0){
+                if(res==-1) res = i;
+
+                // position
+                x.push_back(x[i-1]);
+
+                // progress
+                progress += static_cast<float>(fps*double(0.01f)/n_frames);
+
+                i++; break;
+            }
+
+            // position
+            x.push_back(x[i-1]);
+        }
+
+        // dizzy
+        for(;i<M;i++){
+            // plant ice
+            if (ice_idx < ice_t.size() && ice_t[ice_idx] == static_cast<int>(i)){
+                frozen_cd = std::max(slow_cd>0?frozen_t[1][ice_idx]:frozen_t[0][ice_idx], frozen_cd);
+                slow_cd = std::max(2000, slow_cd);
+                ice_idx++;
+            }
+
+            // cd
+            if (frozen_cd>0) frozen_cd--;
+            if (slow_cd>0) slow_cd--;
+
+            // status
+            if(frozen_cd<=0 && n_repeated>=2){
+
+                // position
+                x.push_back(x[i-1]);
+
+                // eat
+                int op = slow_cd>0?8:4;
+                if(i%op==0){
+                    if(t_enter==-1)
+                        t_enter = i;
+                }
+                
+                i++; break;
+            }
+
+            // position
+            x.push_back(x[i-1]);
+
+            // progress
+            if(frozen_cd<=0){
+                if(slow_cd>0)
+                    progress += static_cast<float>(fps* 0.5f *double(0.01f)/n_frames);         
+                else
+                    progress += static_cast<float>(fps*double(0.01f)/n_frames);
+            }
+            for (; progress >= 1; progress--, n_repeated++);
+        }
+
+        // norm
+        for(;i<M;i++){
+            // plant ice
+            if (ice_idx < ice_t.size() && ice_t[ice_idx] == static_cast<int>(i)){
+                frozen_cd = std::max(slow_cd>0?frozen_t[1][ice_idx]:frozen_t[0][ice_idx], frozen_cd);
+                slow_cd = std::max(2000, slow_cd);
+                ice_idx++;
+            }
+
+            // cd
+            if (frozen_cd>0) frozen_cd--;
+            if (slow_cd>0) slow_cd--;
+
+            // position
+            x.push_back(x[i-1]);
+
+            // eat
+            if (frozen_cd>0) continue;
+            if(t_enter!=-1) continue;
+            int op = slow_cd>0?8:4;
+            if(i%op==0){
+                t_enter = i;
+            }
         }
     }
 
