@@ -61,6 +61,11 @@ public:
 
     void init(){
         // x_crush
+        if (crush_col == 0){
+            x_crush = ZombieData(ZombieType::Zomboni).threshold;
+            return;
+        }
+
         x_crush = 80*crush_col;
         switch (crush_type){
             case 0: break;
