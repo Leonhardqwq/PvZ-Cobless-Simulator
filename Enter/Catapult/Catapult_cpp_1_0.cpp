@@ -95,7 +95,7 @@ int main() {
     printf("Total time: %.2lf seconds\n", std::chrono::duration<double>(end - start).count());
     printf("Press Enter to exit...\n");
     fflush(stdout);
-    // std::cin.get();
+    std::cin.get();
 
     return 0;
 }
