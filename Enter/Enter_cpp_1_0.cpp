@@ -13,6 +13,6 @@ int main() {
     printf("Press Enter to exit...\n");
     fflush(stdout);
     
-    // std::cin.get();
+    std::cin.get();
     return 0;
 }
